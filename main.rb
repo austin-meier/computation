@@ -1,3 +1,18 @@
+class Machine < Struct.new(:statement, :environment)
+  def step
+    self.statement, self.environment = statement.reduce(environment)
+  end
+
+  def run
+    while statement.reducible?
+      puts "#{statement}, #{environment}"
+      step
+    end
+    puts "#{statement}, #{environment}"
+
+  end
+end
+
 class Number < Struct.new(:value)
   def reducible?
     false
@@ -31,11 +46,11 @@ class Add < Struct.new(:left, :right)
     true
   end
 
-  def reduce
+  def reduce(environment)
     if left.reducible?
-      Add.new(left.reduce, right)
+      Add.new(left.reduce(environment), right)
     elsif right.reducible?
-      Add.new(left, right.reduce)
+      Add.new(left, right.reduce(environment))
     else
       Number.new(left.value + right.value)
     end
@@ -55,11 +70,11 @@ class Multiply < Struct.new(:left, :right)
     true
   end
 
-  def reduce
+  def reduce(environment)
     if left.reducible?
-      Multiply.new(left.reduce, right)
+      Multiply.new(left.reduce(environment), right)
     elsif right.reducible?
-      Multply.new(left, right.reduce)
+      Multply.new(left, right.reduce(environment))
     else
       Number.new(left.value * right.value)
     end
@@ -79,11 +94,11 @@ class LessThan < Struct.new(:left, :right)
     true
   end
 
-  def reduce
+  def reduce(environment)
     if left.reducible?
-      LessThan.new(left.reduce, right)
+      LessThan.new(left.reduce(environment), right)
     elsif right.reducible?
-      LessThan.new(left, right.reduce)
+      LessThan.new(left, right.reduce(environment))
     else
       Boolean.new(left.value < right.value)
     end
@@ -98,16 +113,62 @@ class LessThan < Struct.new(:left, :right)
   end
 end
 
-class Machine < Struct.new(:expression)
-  def step
-    self.expression = expression.reduce
+class Variable < Struct.new(:name)
+  def reducible?
+    true
   end
 
-  def run
-    while expression.reducible?
-      puts expression
-      step
+  def reduce(environment)
+    environment[name]
+  end
+
+  def to_s
+    name.to_s
+  end
+
+  def inspect
+    "«#{self}»"
+  end
+end
+
+
+# Statements
+class DoNothing
+  def reducible?
+    false
+  end
+
+  def ==(other_statement)
+    other_statement_instance_of?(DoNothing)
+  end
+
+  def to_s
+    'do-nothing'
+  end
+
+  def inspect
+    "«#{self}»"
+  end
+end
+
+class Assign < Struct.new(:name, :expression)
+  def reducible?
+    true
+  end
+
+  def reduce(environment)
+    if expression.reducible?
+      [Assign.new(name, expression.reduce(environment)), environment]
+    else
+      [DoNothing.new, environment.merge({ name => expression })]
     end
-    puts expression
+  end
+
+  def to_s
+    "#{name} = #{expression}"
+  end
+
+  def inspect
+    "«#{self}»"
   end
 end
